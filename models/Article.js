@@ -35,6 +35,14 @@ const articleSchema = new mongoose.Schema({
   comments: {
     type: Number,
     default: 0
+  },
+  shares: {
+    type: Number,
+    default: 0
+  },
+  saves: {
+    type: Number,
+    default: 0
   }
 });
 
