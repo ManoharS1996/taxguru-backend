@@ -16,7 +16,8 @@ router.get('/', async (req, res) => {
     const articles = await Article.find(query)
       .sort({ date: -1 })
       .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .skip((page - 1) * limit)
+      .select('-__v'); // Exclude __v field
 
     const count = await Article.countDocuments(query);
 
@@ -41,7 +42,7 @@ router.get('/:id', async (req, res) => {
       req.params.id,
       { $inc: { views: 1 } },
       { new: true }
-    );
+    ).select('-__v'); // Exclude __v field
 
     if (!article) {
       return res.status(404).json({
@@ -62,81 +63,32 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Increment shares
-router.post('/:id/share', async (req, res) => {
+// Create new article
+router.post('/', async (req, res) => {
   try {
-    const article = await Article.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { shares: 1 } },
-      { new: true }
-    );
-
-    if (!article) {
-      return res.status(404).json({
+    const { title, content, excerpt, subheading, imageUrl, category } = req.body;
+    
+    if (!title || !content) {
+      return res.status(400).json({
         success: false,
-        error: 'Article not found'
+        error: 'Title and content are required'
       });
     }
 
-    res.json({
+    const newArticle = new Article({
+      title,
+      content,
+      excerpt: excerpt || `${content.substring(0, 150)}...`,
+      subheading: subheading || '',
+      imageUrl: imageUrl || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
+      category: category || 'General'
+    });
+
+    const savedArticle = await newArticle.save();
+
+    res.status(201).json({
       success: true,
-      data: article
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
-});
-
-// Increment saves
-router.post('/:id/save', async (req, res) => {
-  try {
-    const article = await Article.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { saves: 1 } },
-      { new: true }
-    );
-
-    if (!article) {
-      return res.status(404).json({
-        success: false,
-        error: 'Article not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: article
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
-});
-
-// Add comment (increments comment count)
-router.post('/:id/comment', async (req, res) => {
-  try {
-    const article = await Article.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { comments: 1 } },
-      { new: true }
-    );
-
-    if (!article) {
-      return res.status(404).json({
-        success: false,
-        error: 'Article not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: article
+      data: savedArticle
     });
   } catch (err) {
     res.status(500).json({
